@@ -66,9 +66,9 @@ function ipa_solve(
     if ray === nothing
         ray = rand(M)
     end
-    zh = ones(M)
+    z_hat = ones(M)
     
-    ans_flat = _ipa(p.nums_actions, p.payoffs, ray, zh, alpha, fuzz)
+    ans_flat = _ipa(p.nums_actions, p.payoffs, ray, z_hat, alpha, fuzz)
 
     NE = _slice_actions(ans_flat, p.nums_actions)
     
@@ -135,7 +135,7 @@ function _ipa(
     nums_actions::NTuple{N,Int},
     payoffs::Vector{Float64},
     ray::Vector{Float64},
-    zh::Vector{Float64},
+    z_hat::Vector{Float64},
     alpha::Float64,
     fuzz::Float64,
 ) where N
@@ -146,7 +146,7 @@ function _ipa(
     ret = ccall(
         (:ipa, libgametracer), Cint,
         (Cint, Ptr{Cint}, Ptr{Cdouble}, Ptr{Cdouble}, Ptr{Cdouble}, Cdouble, Cdouble, Ptr{Cdouble}),
-        num_players, actions_c, payoffs, ray, zh, alpha, fuzz, ans
+        num_players, actions_c, payoffs, ray, z_hat, alpha, fuzz, ans
     )
 
     ret < 0 && error("IPA returned shim error code $ret")
