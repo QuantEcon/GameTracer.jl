@@ -23,7 +23,7 @@ export IPAResult, GNMResult
 """
 # [TODO] TBD: Still under discussion
 struct IPAResult{N}
-    equilibrium::NTuple{N, Vector{Float64}}
+    NE::NTuple{N, Vector{Float64}}
     nums_actions::NTuple{N, Int}
 end
 
@@ -35,7 +35,7 @@ end
 """
 # [TODO] TBD: Still under discussion
 struct GNMResult{N}
-    equilibria::Vector{NTuple{N, Vector{Float64}}}
+    NEs::Vector{NTuple{N, Vector{Float64}}}
     nums_actions::NTuple{N, Int}
 end
 
@@ -68,9 +68,11 @@ function ipa_solve(
     end
     zh = ones(M)
     
-    ans = _ipa(p.nums_actions, p.payoffs, ray, zh, alpha, fuzz)
+    ans_flat = _ipa(p.nums_actions, p.payoffs, ray, zh, alpha, fuzz)
+
+    NE = _slice_actions(ans_flat, p.nums_actions)
     
-    return IPAResult(p.nums_actions, ans)
+    return IPAResult(NE, p.nums_actions)
 end
 
 
@@ -107,17 +109,27 @@ function gnm_solve(
         ray = rand(M)
     end
 
-    equilibria = _gnm(p.nums_actions, p.payoffs, ray,
+    equilibria_flat = _gnm(p.nums_actions, p.payoffs, ray,
                       steps, fuzz, lnmfreq, lnmmax, 
                       lambdamin, wobble, threshold)
     
-    return GNMResult(equilibria, p.nums_actions)
+    NEs = [_slice_actions(ans, p.nums_actions) for ans in equilibria_flat]
+    
+    return GNMResult(NEs, p.nums_actions)
 end
-
 
 # ------------------------------------------------------------------
 # Private API (C ABI wrappers)
 # ------------------------------------------------------------------
+
+# Slice a flat Vector{Float64} of length M into per-player NTuple
+function _slice_actions(
+    flat::Vector{Float64},
+    nums_actions::NTuple{N,Int}
+) where N
+    offsets = cumsum((0, nums_actions...))
+    return ntuple(i -> flat[offsets[i]+1 : offsets[i+1]], Val(N))
+end
 
 function _ipa(
     nums_actions::NTuple{N,Int},
