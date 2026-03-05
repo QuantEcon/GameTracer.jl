@@ -40,6 +40,51 @@ struct GNMResult{N}
     nums_actions::NTuple{N, Int}
 end
 
+
+
+"""
+    ipa!(ans::Vector{Float64}, g::NormalFormGame; kwargs...) -> ans
+
+# Arguments
+
+# Keyword Arguments
+
+# Returns
+
+- `ans`: The computed equilibrium strategy profile, modified in-place.
+
+"""
+function ipa!(
+    ans::Vector{Float64},
+    rng::AbstractRNG,
+    g::NormalFormGame;
+    ray::Union{Vector{Float64}, Nothing} = nothing,
+    alpha::Float64 = 0.02,
+    fuzz::Float64 = 1e-6,
+)
+    p = GAMPayoffVector(Float64, g)
+    M = sum(p.nums_actions)
+
+    length(ans) == M || throw(ArgumentError(
+        "Length of ans ($length(ans)) must be equal to total number of actions (M=$M)"
+    ))
+
+    if ray === nothing
+        ray = rand(rng, M)
+    end
+    z_hat = ones(M)
+    
+    result = _ipa(p.nums_actions, p.payoffs, ray, z_hat, alpha, fuzz)
+
+    copyto!(ans, result)
+    
+    return ans
+end
+
+ipa!(ans::Vector{Float64}, g::NormalFormGame; kwargs...) = 
+    ipa!(ans, Random.GLOBAL_RNG, g; kwargs...)
+
+
 """
     ipa_solve(g::NormalFormGame) -> IPAResult
 
@@ -65,20 +110,18 @@ function ipa_solve(
     p = GAMPayoffVector(Float64, g)
     M = sum(p.nums_actions)
 
-    if ray === nothing
-        ray = rand(rng, M)
-    end
-    z_hat = ones(M)
+    ans = Vector{Float64}(undef, M)
     
-    ans_flat = _ipa(p.nums_actions, p.payoffs, ray, z_hat, alpha, fuzz)
+    ipa!(ans, rng, g; ray=ray, alpha=alpha, fuzz=fuzz)
 
-    NE = _slice_actions(ans_flat, p.nums_actions)
+    NE = _slice_actions(ans, p.nums_actions)
     
     return IPAResult(NE, p.nums_actions)
 end
 
 ipa_solve(g::NormalFormGame; kwargs...) = 
     ipa_solve(Random.GLOBAL_RNG, g; kwargs...)
+
 
 """
     gnm_solve(g::NormalFormGame) -> GNMResult
