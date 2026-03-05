@@ -11,9 +11,3 @@ GameTheory = "64a4ffa8-f47c-4a47-8dad-aee7aadc3b51"
 [compat]
 GameTheory = "0.4"
 julia = "1.10"
-
-[extras]
-Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
-
-[targets]
-test = ["Test"]
