@@ -182,76 +182,98 @@ function _slice_actions(
     return ntuple(i -> flat[offsets[i]+1 : offsets[i+1]], Val(N))
 end
 
-function ipa(
-    nums_actions::NTuple{N,Int},
-    payoffs::Vector{Float64},
-    ray::Vector{Float64},
-    z_hat::Vector{Float64},
-    alpha::Float64,
-    fuzz::Float64,
-) where N
-    num_players = Cint(N)
-    actions_c = Cint[a for a in nums_actions]
-    M = sum(nums_actions)
-    ans = zeros(Float64, M)
+function ipa!(
+    N::Integer,
+    actions::Vector{Cint},
+    payoffs::Vector{Cdouble},
+    ray::Vector{Cdouble},
+    zh::Vector{Cdouble},
+    alpha::Cdouble,
+    fuzz::Cdouble,
+    out::Vector{Cdouble}
+)
     ret = ccall(
         (:ipa, libgametracer), Cint,
-        (Cint, Ptr{Cint}, Ptr{Cdouble}, Ptr{Cdouble}, Ptr{Cdouble}, Cdouble, Cdouble, Ptr{Cdouble}),
-        num_players, actions_c, payoffs, ray, z_hat, alpha, fuzz, ans
+        (Cint, Ptr{Cint}, Ptr{Cdouble},
+         Ptr{Cdouble}, Ptr{Cdouble},
+         Cdouble, Cdouble,
+         Ptr{Cdouble}),
+        N, actions, payoffs,
+        ray, zh,
+        alpha, fuzz,
+        out
     )
 
-    ret < 0 && error("IPA returned shim error code $ret")
-    ret == 0 && error("IPA failed: no equilibrium found (ret=0)")  
+    ret <= 0 && error("IPA failed (ret = $ret)")
 
-    return ans
+    return (out, ret)
 end
 
 function gnm(
-    nums_actions::NTuple{N,Int},
-    payoffs::Vector{Float64},
-    ray::Vector{Float64},
+    N::Integer,
+    actions::Vector{Cint},
+    payoffs::Vector{Cdouble},
+    ray::Vector{Cdouble},
     steps::Integer,
-    fuzz::Float64,
+    fuzz::Cdouble,
     lnmfreq::Integer,
     lnmmax::Integer,
-    lambdamin::Float64,
+    lambdamin::Cdouble,
     wobble::Integer,
-    threshold::Float64,
-) where N
-    num_players = Cint(N)
-    actions_c   = Cint[a for a in nums_actions]
-    M           = sum(nums_actions)
+    threshold::Cdouble,
+)
+    M = sum(actions)
     answers_ref = Ref{Ptr{Cdouble}}(C_NULL)
 
-    num_eq = ccall(
+    ret = ccall(
         (:gnm, libgametracer), Cint,
         (Cint, Ptr{Cint}, Ptr{Cdouble},
          Ptr{Cdouble}, Ref{Ptr{Cdouble}},
          Cint, Cdouble, Cint, Cint, Cdouble, Cint, Cdouble),
-        num_players, actions_c, payoffs,
+        N, actions, payoffs,
         ray, answers_ref,
-        Cint(steps), fuzz, Cint(lnmfreq), Cint(lnmmax),
-        lambdamin, Cint(wobble), threshold
+        steps, fuzz, lnmfreq, lnmmax, lambdamin, wobble, threshold
     )
 
-    # ret < 0: shim error, answers == NULL
-    num_eq < 0 && error("GNM returned shim error code $num_eq")
+    ret < 0 && error("GNM failed (ret = $ret)")
 
     # ret == 0: 0 equilibria, answers == NULL
-    num_eq == 0 && return Vector{Vector{Float64}}()
-    
+    ret == 0 && return (Matrix{Cdouble}(undef, M, 0), ret)
+
     # ret > 0: num_eq equilibria, answers is malloc'd buffer
     ptr = answers_ref[]
-    ptr != C_NULL || error("GNM returned num_eq=$num_eq but answers pointer was NULL")
+    ptr != C_NULL || error("GNM returned ret=$ret but answers pointer was NULL")
 
     answers = try
-        answers_view = unsafe_wrap(Array, ptr, (M, Int(num_eq)); own=false)
+        answers_view = unsafe_wrap(Array, ptr, (M, Int(ret)); own=false)
         copy(answers_view)
     finally
         ccall((:gametracer_free, libgametracer), Cvoid, (Ptr{Cvoid},), ptr)
     end
 
-    return [answers[:, j] for j in 1:Int(num_eq)]
+    return (answers, ret)
+end
+
+function _get_action_profile(x::AbstractVector{T},
+                             nums_actions::NTuple{N,Integer}) where {N,T}
+    out = ntuple(i -> Vector{T}(undef, nums_actions[i]), Val(N))
+    ind = 1
+    @inbounds for i in 1:N
+        len = nums_actions[i]
+        copyto!(out[i], 1, x, ind, len)
+        ind += len
+    end
+    return out
+end
+
+function _get_action_profiles(x::AbstractMatrix{T},
+                              nums_actions::NTuple{N,Integer}) where {N,T}
+    num_eq = size(x, 2)
+    out = Vector{NTuple{N,Vector{T}}}(undef, num_eq)
+    @inbounds for j in 1:num_eq
+        out[j] = _get_action_profile(@view(x[:, j]), nums_actions)
+    end
+    return out
 end
 
 end
