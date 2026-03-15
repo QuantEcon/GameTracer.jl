@@ -14,7 +14,6 @@ const libgametracer = "/tmp/gametracer_prefix/lib/libgametracer.dylib"
 # Public API & Result Types
 # ------------------------------------------------------------------
 export ipa_solve, gnm_solve
-export IPAResult, GNMResult
 
 """
     IPAResult
@@ -22,10 +21,8 @@ export IPAResult, GNMResult
 # Fields TBD
 
 """
-# [TODO] TBD: Still under discussion
 struct IPAResult{N}
     NE::NTuple{N, Vector{Float64}}
-    nums_actions::NTuple{N, Int}
 end
 
 """
@@ -39,50 +36,6 @@ struct GNMResult{N}
     NEs::Vector{NTuple{N, Vector{Float64}}}
     nums_actions::NTuple{N, Int}
 end
-
-
-
-"""
-    ipa!(ans::Vector{Float64}, g::NormalFormGame; kwargs...) -> ans
-
-# Arguments
-
-# Keyword Arguments
-
-# Returns
-
-- `ans`: The computed equilibrium strategy profile, modified in-place.
-
-"""
-function ipa!(
-    ans::Vector{Float64},
-    rng::AbstractRNG,
-    g::NormalFormGame;
-    ray::Union{Vector{Float64}, Nothing} = nothing,
-    alpha::Float64 = 0.02,
-    fuzz::Float64 = 1e-6,
-)
-    p = GAMPayoffVector(Float64, g)
-    M = sum(p.nums_actions)
-
-    length(ans) == M || throw(ArgumentError(
-        "Length of ans $(length(ans)) must be equal to total number of actions (M=$M)"
-    ))
-
-    if ray === nothing
-        ray = rand(rng, M)
-    end
-    z_hat = ones(M)
-    
-    result = ipa(p.nums_actions, p.payoffs, ray, z_hat, alpha, fuzz)
-
-    copyto!(ans, result)
-    
-    return ans
-end
-
-ipa!(ans::Vector{Float64}, g::NormalFormGame; kwargs...) = 
-    ipa!(ans, Random.GLOBAL_RNG, g; kwargs...)
 
 
 """
@@ -99,24 +52,23 @@ ipa!(ans::Vector{Float64}, g::NormalFormGame; kwargs...) =
 # References
 
 """
-# [TODO] TBD: Still under discussion
 function ipa_solve(
     rng::AbstractRNG,
-    g::NormalFormGame;
-    ray::Union{Vector{Float64}, Nothing} = nothing,
+    g::NormalFormGame{N};
+    ray::Vector{Float64} = rand(rng, sum(g.nums_actions)),
+    init::Vector{Float64} = ones(sum(g.nums_actions)),
     alpha::Float64 = 0.02,
     fuzz::Float64 = 1e-6,
-)
+) where {N}
+    actions = Cint[g.nums_actions...]
     p = GAMPayoffVector(Float64, g)
-    M = sum(p.nums_actions)
+    M = sum(actions)
+    out = Vector{Float64}(undef, M)
+    out, ret = ipa!(N, actions, p.payoffs, ray, init, alpha, fuzz, out)
 
-    ans = Vector{Float64}(undef, M)
-    
-    ipa!(ans, rng, g; ray=ray, alpha=alpha, fuzz=fuzz)
+    NE = _get_action_profile(out, g.nums_actions)
 
-    NE = _slice_actions(ans, p.nums_actions)
-    
-    return IPAResult(NE, p.nums_actions)
+    return IPAResult(NE)
 end
 
 ipa_solve(g::NormalFormGame; kwargs...) = 
