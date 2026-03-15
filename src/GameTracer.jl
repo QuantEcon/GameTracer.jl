@@ -173,15 +173,6 @@ gnm_solve(g::NormalFormGame; kwargs...) =
 # Private API (C ABI wrappers)
 # ------------------------------------------------------------------
 
-# Slice a flat Vector{Float64} of length M into per-player NTuple
-function _slice_actions(
-    flat::Vector{Float64},
-    nums_actions::NTuple{N,Int}
-) where N
-    offsets = cumsum((0, nums_actions...))
-    return ntuple(i -> flat[offsets[i]+1 : offsets[i+1]], Val(N))
-end
-
 function ipa!(
     N::Integer,
     actions::Vector{Cint},
