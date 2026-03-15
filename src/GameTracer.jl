@@ -19,8 +19,8 @@ export ipa_solve, gnm_solve
 """
     IPAResult
 
-# Fields TBD
-
+# Fields
+- `NE::NTuple{N, Vector{Float64}}`: one Nash equilibrium in mixed strategies.
 """
 struct IPAResult{N}
     NE::NTuple{N, Vector{Float64}}
@@ -29,8 +29,9 @@ end
 """
     GNMResult
 
-# Fields TBD
-
+# Fields
+- `NEs::Vector{NTuple{N, Vector{Float64}}}`: equilibria found by GNM.
+- `num_NEs::Int`: number of equilibria found.
 """
 struct GNMResult{N}
     NEs::Vector{NTuple{N, Vector{Float64}}}
@@ -41,16 +42,26 @@ end
 """
     ipa_solve(g::NormalFormGame) -> IPAResult
 
+Compute one Nash equilibrium using the IPA algorithm.
+
 # Arguments
+- `g::NormalFormGame`: the game to solve (must have 2 or more players)
 
 # Keyword Arguments
+- `ray::AbstractVector{<:Real}`: 
+    initial ray for IPA (default: random vector of length sum of g.nums_actions)
+- `zh::AbstractVector{<:Real}`: 
+    initial zh vector for IPA (default: vector of ones of length sum of g.nums_actions)
+- `alpha::Real`: step size parameter for IPA (default: 0.02)
+- `fuzz::Real`: convergence threshold for IPA (default: 1e-6)
 
 # Returns
-
-- IPAResult:
+- `IPAResult`: one equilibrium found by IPA.
 
 # References
-
+- S. Govindan and R. Wilson (2004), "Computing Nash equilibria by iterated
+  polymatrix approximation", Journal of Economic Dynamics and Control 28,
+  1229-1241.
 """
 function ipa_solve(
     rng::AbstractRNG,
@@ -96,16 +107,28 @@ end
 """
     gnm_solve(g::NormalFormGame) -> GNMResult
 
+Compute Nash equilibria using the GNM algorithm.
+
 # Arguments
+- `g::NormalFormGame`: the game to solve (must have 2 or more players)
 
 # Keyword Arguments
+- `ray::AbstractVector{<:Real}`: 
+    initial ray for GNM (default: random vector of length sum of g.nums_actions)
+- `steps::Integer`: maximum number of steps for GNM (default: 100)
+- `fuzz::Real`: convergence threshold for GNM (default: 1e-12)
+- `lnmfreq::Integer`: frequency of LNM calls in GNM (default: 3)
+- `lnmmax::Integer`: maximum number of LNM calls in GNM (default: 10)
+- `lambdamin::Real`: minimum lambda value for LNM in GNM (default: -10.0)
+- `wobble::Bool`: whether to use wobbling in GNM (default: false)
+- `threshold::Real`: threshold for wobbling in GNM (default: 1e-2)
 
 # Returns
-
-- GNMResult: 
+- `GNMResult`: equilibria found by GNM.
 
 # References
-
+- S. Govindan and R. Wilson (2003), "A global Newton method to compute Nash
+  equilibria", Journal of Economic Theory 110, 65-86.
 """
 function gnm_solve(
     rng::AbstractRNG,
