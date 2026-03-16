@@ -4,25 +4,6 @@ using Random
 using Test
 
 @testset "GameTracer.jl" begin
-    @testset "action-profile helpers" begin
-        num_actions = (2, 3)
-        x = [0.2, 0.8, 0.5, 0.3, 0.2]
-        @test GameTracer._get_action_profile(x, num_actions) ==
-              ([0.2, 0.8], [0.5, 0.3, 0.2])
-        
-        X = [
-            0.2 0.5
-            0.8 0.3 
-            0.5 0.1
-            0.3 0.2
-            0.2 0.7
-        ]
-        @test GameTracer._get_action_profiles(X, num_actions) == [
-            ([0.2, 0.8], [0.5, 0.3, 0.2]),
-            ([0.5, 0.3], [0.1, 0.2, 0.7])
-        ]
-    end
-
     gs = []
 
     g = NormalFormGame(Player([3 3; 2 5; 0 6]),
@@ -36,20 +17,6 @@ using Test
     g[2, 1, 2] = 3, 4, 4
     push!(gs, g)
 
-    @testset "ipa_solve input validation" begin
-        g = gs[1]
-        seed = 1234
-        rng = MersenneTwister(seed)
-        M = sum(g.nums_actions)
-        @test_throws ArgumentError ipa_solve(rng, g, ray=zeros(M - 1))
-        @test_throws ArgumentError ipa_solve(rng, g, zh=ones(M - 1))
-        @test_throws ArgumentError ipa_solve(rng, g, ray=fill(NaN, M))
-        @test_throws ArgumentError ipa_solve(rng, g, zh=fill(Inf, M))
-        @test_throws ArgumentError ipa_solve(rng, g, alpha=-0.1)
-        @test_throws ArgumentError ipa_solve(rng, g, alpha=1.5)
-        @test_throws ArgumentError ipa_solve(rng, g, fuzz=0.0)
-    end
-
     @testset "ipa_solve" begin
         seed = 1234
         rng = MersenneTwister(seed)
@@ -62,6 +29,38 @@ using Test
             res = @inferred ipa_solve(rng, g, fuzz=fuzz)
             @test is_nash(g, res.NE, tol=fuzz)
         end
+    end
+
+    @testset "gnm_solve" begin
+        seed = 1234
+        rng = MersenneTwister(seed)
+        for g in gs
+            res = @inferred gnm_solve(rng, g)
+            @test length(res.NEs) == res.num_NEs
+            for NE in res.NEs
+                @test is_nash(g, NE,)
+            end
+        end
+    end
+
+    @testset "1-player game" begin
+        g = NormalFormGame([[1], [2], [3]])
+        @test_throws ArgumentError ipa_solve(g)
+        @test_throws ArgumentError gnm_solve(g)
+    end
+
+    @testset "ipa_solve input validation" begin
+        g = gs[1]
+        seed = 1234
+        rng = MersenneTwister(seed)
+        M = sum(g.nums_actions)
+        @test_throws ArgumentError ipa_solve(rng, g, ray=zeros(M - 1))
+        @test_throws ArgumentError ipa_solve(rng, g, zh=ones(M - 1))
+        @test_throws ArgumentError ipa_solve(rng, g, ray=fill(NaN, M))
+        @test_throws ArgumentError ipa_solve(rng, g, zh=fill(Inf, M))
+        @test_throws ArgumentError ipa_solve(rng, g, alpha=-0.1)
+        @test_throws ArgumentError ipa_solve(rng, g, alpha=1.5)
+        @test_throws ArgumentError ipa_solve(rng, g, fuzz=0.0)
     end
 
     @testset "gnm_solve input validation" begin
@@ -82,21 +81,22 @@ using Test
         @test_throws ArgumentError gnm_solve(rng, g, threshold=0.0)
     end
 
-    @testset "gnm_solve" begin
-        seed = 1234
-        rng = MersenneTwister(seed)
-        for g in gs
-            res = @inferred gnm_solve(rng, g)
-            @test length(res.NEs) == res.num_NEs
-            for NE in res.NEs
-                @test is_nash(g, NE,)
-            end
-        end
-    end
-
-    @testset "1-player game" begin
-        g = NormalFormGame([[1], [2], [3]])
-        @test_throws ArgumentError ipa_solve(g)
-        @test_throws ArgumentError gnm_solve(g)
+    @testset "action-profile helpers" begin
+        num_actions = (2, 3)
+        x = [0.2, 0.8, 0.5, 0.3, 0.2]
+        @test GameTracer._get_action_profile(x, num_actions) ==
+              ([0.2, 0.8], [0.5, 0.3, 0.2])
+        
+        X = [
+            0.2 0.5
+            0.8 0.3 
+            0.5 0.1
+            0.3 0.2
+            0.2 0.7
+        ]
+        @test GameTracer._get_action_profiles(X, num_actions) == [
+            ([0.2, 0.8], [0.5, 0.3, 0.2]),
+            ([0.5, 0.3], [0.1, 0.2, 0.7])
+        ]
     end
 end
