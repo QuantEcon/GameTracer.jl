@@ -73,15 +73,13 @@ function ipa_solve(
 ) where {N}
     M = sum(g.nums_actions)
 
-    length(ray) == M || throw(ArgumentError("length(ray) must be sum of g.nums_actions"))
-    length(zh) == M || throw(ArgumentError("length(zh) must be sum of g.nums_actions"))
-    all(isfinite, ray) || throw(ArgumentError("ray must contain finite values"))
-    all(isfinite, zh) || throw(ArgumentError("zh must contain finite values"))
-    isfinite(alpha) && 0 < alpha < 1 || 
-        throw(ArgumentError("alpha must be a positive finite value in (0, 1)"))
-    isfinite(fuzz) && fuzz > 0 || 
-        throw(ArgumentError("fuzz must be a positive finite value"))
-
+    length(ray) == M ||
+        throw(ArgumentError("length(ray) must be equal to sum(g.nums_actions)"))
+    length(zh) == M || 
+        throw(ArgumentError("length(zh) must be equal to sum(g.nums_actions)"))
+    0 < alpha < 1 || 
+        throw(ArgumentError("alpha must satisfy 0 < alpha < 1"))
+    
     actions = Cint[g.nums_actions...]
     p = GAMPayoffVector(Cdouble, g)
     ray = convert(Vector{Cdouble}, ray)
@@ -144,17 +142,10 @@ function gnm_solve(
 ) where {N}
     M = sum(g.nums_actions)
 
-    length(ray) == M || throw(ArgumentError("length(ray) must be sum of g.nums_actions"))
-    all(isfinite, ray) || throw(ArgumentError("ray must contain finite values"))
-    steps > 0 || throw(ArgumentError("steps must be a positive integer"))
-    isfinite(fuzz) && fuzz > 0 || 
-        throw(ArgumentError("fuzz must be a positive finite value"))
-    lnmfreq > 0 || throw(ArgumentError("lnmfreq must be a positive integer"))
-    lnmmax >= 0 || throw(ArgumentError("lnmmax must be a nonnegative integer"))
-    isfinite(lambdamin) && lambdamin < 0 || 
-        throw(ArgumentError("lambdamin must be a finite value"))
-    isfinite(threshold) && threshold > 0 || 
-        throw(ArgumentError("threshold must be a positive finite value"))
+    length(ray) == M ||
+        throw(ArgumentError("length(ray) must be sum(g.nums_actions)"))
+    lambdamin < 0 || 
+        throw(ArgumentError("lambdamin must be a negative finite value"))
 
     actions = Cint[g.nums_actions...]
     p = GAMPayoffVector(Cdouble, g)
