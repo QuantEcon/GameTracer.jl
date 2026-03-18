@@ -55,7 +55,7 @@ using Test
         rng = MersenneTwister(seed)
         M = sum(g.nums_actions)
         @test_throws ArgumentError ipa_solve(rng, g, ray=zeros(M - 1))
-        @test_throws ArgumentError ipa_solve(rng, g, zh=ones(M - 1))
+        @test_throws ArgumentError ipa_solve(rng, g, z_init=ones(M - 1))
         @test_throws ArgumentError ipa_solve(rng, g, alpha=-0.1)
         @test_throws ArgumentError ipa_solve(rng, g, alpha=1.5)
     end

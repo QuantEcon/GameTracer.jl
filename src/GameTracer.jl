@@ -50,8 +50,8 @@ Compute one Nash equilibrium using the IPA algorithm.
 # Keyword Arguments
 - `ray::AbstractVector{<:Real}`: 
     initial ray for IPA (default: random vector of length sum of g.nums_actions)
-- `zh::AbstractVector{<:Real}`: 
-    initial zh vector for IPA (default: vector of ones of length sum of g.nums_actions)
+- `z_init::AbstractVector{<:Real}`: 
+    initial z_init vector for IPA (default: vector of ones of length sum of g.nums_actions)
 - `alpha::Real`: step size parameter for IPA (default: 0.02)
 - `fuzz::Real`: convergence threshold for IPA (default: 1e-6)
 
@@ -67,7 +67,7 @@ function ipa_solve(
     rng::AbstractRNG,
     g::NormalFormGame{N};
     ray::AbstractVector{<:Real} = rand(rng, sum(g.nums_actions)),
-    zh::AbstractVector{<:Real} = ones(sum(g.nums_actions)),
+    z_init::AbstractVector{<:Real} = ones(sum(g.nums_actions)),
     alpha::Real = 0.02,
     fuzz::Real = 1e-6,
 ) where {N}
@@ -75,18 +75,18 @@ function ipa_solve(
 
     length(ray) == M ||
         throw(ArgumentError("length(ray) must be equal to sum(g.nums_actions)"))
-    length(zh) == M || 
-        throw(ArgumentError("length(zh) must be equal to sum(g.nums_actions)"))
+    length(z_init) == M || 
+        throw(ArgumentError("length(z_init) must be equal to sum(g.nums_actions)"))
     0 < alpha < 1 || 
         throw(ArgumentError("alpha must satisfy 0 < alpha < 1"))
     
     actions = Cint[g.nums_actions...]
     p = GAMPayoffVector(Cdouble, g)
     ray = convert(Vector{Cdouble}, ray)
-    zh = Vector{Cdouble}(zh)  # Copy
+    z_init = Vector{Cdouble}(z_init)  # Copy
     out = Vector{Cdouble}(undef, M)
     out, ret = ipa!(
-        N, actions, p.payoffs, ray, zh, Cdouble(alpha), Cdouble(fuzz), out
+        N, actions, p.payoffs, ray, z_init, Cdouble(alpha), Cdouble(fuzz), out
     )
 
     NE = _get_action_profile(out, g.nums_actions)
