@@ -50,11 +50,11 @@ approximation (IPA) algorithm (Govindan and Wilson, 2004).
 # Arguments
 - `rng::AbstractRNG`: Random number generator used when the default `ray` is 
     used.
-- `g::NormalFormGame`: A `NormalFormGame` instance with `N >=2` players.
+- `g::NormalFormGame`: A `NormalFormGame` instance with `N >= 2` players.
 
 # Keyword Arguments
 - `ray::AbstractVector{<:Real} = rand(rng, sum(g.nums_actions))`: 
-    Pertubation ray. Its length must equal `sum(g.nums_actions)`.
+    Perturbation ray. Its length must equal `sum(g.nums_actions)`.
 - `z_init::AbstractVector{<:Real} = ones(sum(g.nums_actions))`: 
     Initial point for the iteration. Its length must equal `sum(g.nums_actions)`.
 - `alpha::Real = 0.02`: Step size parameter. Must satisfy `0 < alpha < 1`.
@@ -146,18 +146,18 @@ algorithm (Govindan and Wilson, 2003).
 # Arguments
 - `rng::AbstractRNG`: Random number generator used when the default `ray` is 
     used.
-- `g::NormalFormGame`: A `NormalFormGame` instance with `N >=2` players.
+- `g::NormalFormGame`: A `NormalFormGame` instance with `N >= 2` players.
 
 # Keyword Arguments
 - `ray::AbstractVector{<:Real} = rand(rng, sum(g.nums_actions))`: 
-    Pertubation ray. Its length must equal `sum(g.nums_actions)`.
+    Perturbation ray. Its length must equal `sum(g.nums_actions)`.
 - `steps::Integer = 100`: Maximum number of steps.
 - `fuzz::Real = 1e-12`: Cutoff value for a variety of things.
 - `lnmfreq::Integer = 3`: Frequency parameter. A Local Newton Method subroutine 
     will be run every LNMFreq steps to decrease accumulated errors.
 - `lnmmax::Integer = 10`: Maximum number of iterations within the LNM algorithm.
-- `lambdamin::Real = -10.0`: Minimum lambda value for the LNM algorithm. The 
-    algorithm terminates if lambda falls below this value. Must be negative.
+- `lambdamin::Real = -10.0`: Minimum lambda value. The equilibrium search 
+    terminates if lambda falls below this value. Must be negative.
 - `wobble::Bool = false`: Whether to use "wobbles" of the perturbation vector to
      remove accumulated errors. This removes the theoretical guarantee of 
      convergence, but in practice may help keep GNM on the path 
