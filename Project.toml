@@ -1,14 +1,16 @@
 name = "GameTracer"
 uuid = "8cb375ce-8ac0-445a-ba91-c464b2953507"
-authors = ["mnshkw <mao.nishikawa24@gmail.com> and contributors"]
-version = "1.0.0-DEV"
-license = "GPL-2.0-only"
+repo = "https://github.com/mnshkw/GameTracer.jl.git"
+version = "0.1.0-DEV"
+license = "GPL-3.0-or-later"
+
+[deps]
+GameTheory = "64a4ffa8-f47c-4a47-8dad-aee7aadc3b51"
+Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
+gametracer_jll = "2058adf7-7bf0-520c-9955-5a68511dd633"
 
 [compat]
-julia = "1.10.10"
-
-[extras]
-Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
-
-[targets]
-test = ["Test"]
+GameTheory = "0.5"
+Random = "1"
+julia = "1.10"
+gametracer_jll = "0.2.1"
