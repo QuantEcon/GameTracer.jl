@@ -1,6 +1,6 @@
 name = "GameTracer"
 uuid = "8cb375ce-8ac0-445a-ba91-c464b2953507"
-repo = "https://github.com/mnshkw/GameTracer.jl.git"
+repo = "https://github.com/QuantEcon/GameTracer.jl.git"
 version = "0.1.0-DEV"
 license = "GPL-3.0-or-later"
 

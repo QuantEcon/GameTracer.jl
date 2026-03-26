@@ -5,10 +5,10 @@ DocMeta.setdocmeta!(GameTracer, :DocTestSetup, :(using GameTracer); recursive=tr
 
 makedocs(;
     modules=[GameTracer],
-    authors="mnshkw <mao.nishikawa24@gmail.com> and contributors",
+    authors="GameTracer.jl contributors",
     sitename="GameTracer.jl",
     format=Documenter.HTML(;
-        canonical="https://mnshkw.github.io/GameTracer.jl",
+        canonical="https://QuantEcon.github.io/GameTracer.jl",
         edit_link="main",
         assets=String[],
     ),
@@ -18,6 +18,6 @@ makedocs(;
 )
 
 deploydocs(;
-    repo="github.com/mnshkw/GameTracer.jl",
+    repo="github.com/QuantEcon/GameTracer.jl",
     devbranch="main",
 )

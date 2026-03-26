@@ -1,8 +1,8 @@
 # GameTracer.jl
 
-[![Stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://mnshkw.github.io/GameTracer.jl/stable/)
-[![Dev](https://img.shields.io/badge/docs-dev-blue.svg)](https://mnshkw.github.io/GameTracer.jl/dev/)
-[![Build Status](https://github.com/mnshkw/GameTracer.jl/actions/workflows/CI.yml/badge.svg?branch=main)](https://github.com/mnshkw/GameTracer.jl/actions/workflows/CI.yml?query=branch%3Amain)
+[![Stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://QuantEcon.github.io/GameTracer.jl/stable/)
+[![Dev](https://img.shields.io/badge/docs-dev-blue.svg)](https://QuantEcon.github.io/GameTracer.jl/dev/)
+[![Build Status](https://github.com/QuantEcon/GameTracer.jl/actions/workflows/CI.yml/badge.svg?branch=main)](https://github.com/QuantEcon/GameTracer.jl/actions/workflows/CI.yml?query=branch%3Amain)
 [![License: GPL v3+](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 
 A Julia wrapper for [gametracer](https://github.com/QuantEcon/gametracer), 
