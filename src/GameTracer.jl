@@ -68,29 +68,31 @@ approximation (IPA) algorithm (Govindan and Wilson, 2004).
 
 # Examples
 
-Consider the following 3x2 game from von Stengel (2007):
+Consider the following 2x2x2 game with 9 Nash equilibria from McKelvey and 
+    McLennan (1996):
 
 ```julia
 julia> using GameTheory, GameTracer, Random
 
-julia> player1 = Player([3 3; 2 5; 0 6]);  
+julia> seed = 1234
 
-julia> player2 = Player([3 2 3; 2 6 1]);
+julia> g = NormalFormGame((2, 2, 2));
 
-julia> g = NormalFormGame(player1, player2);
+julia> g[1, 1, 1] = 9, 8, 12;
 
-julia> ray = [0.87, 0.04, 0.81, 0.97, 0.17];
+julia> g[2, 2, 1] = 9, 8, 2;
 
-julia> res = ipa_solve(g; ray=ray);
+julia> g[1, 2, 2] = 3, 4, 6;
 
-julia> println(res.ret_code > 0)
-true
+julia> g[2, 1, 2] = 3, 4, 4;
 
-julia> println(length(res.NE))
-2
+julia> rng = MersenneTwister(seed)
 
-julia> println(is_nash(g, res.NE; tol=1e-6))
-true
+julia> res = ipa_solve(rng, g)
+
+julia> res.NE
+([0.2500000414734812, 0.7499999585265188], [0.49999980486854023, 
+    0.5000001951314598], [0.33333361994793975, 0.6666663800520602])
 ```
 
 # References
@@ -179,6 +181,8 @@ Consider the following 2x2x2 game with 9 Nash equilibria from McKelvey and
 ```julia
 julia> using GameTheory, GameTracer, Random
 
+julia> seed = 1234
+
 julia> g = NormalFormGame((2, 2, 2));
 
 julia> g[1, 1, 1] = 9, 8, 12;
@@ -189,19 +193,28 @@ julia> g[1, 2, 2] = 3, 4, 6;
 
 julia> g[2, 1, 2] = 3, 4, 4;
 
-julia> ray = [0.87, 0.04, 0.81, 0.97, 0.17, 0.04]
+julia> rng = MersenneTwister(seed)
 
-julia> res = gnm_solve(g; ray=ray);
+julia> res1 = gnm_solve(rng, g);
 
-julia> println(res.ret_code)
-9
-
-julia> println(length(res.NEs))
-9
-
-julia> println(all(NE -> is_nash(g, NE), res.NEs))
-true
+julia> println(length(res1.NEs))
+7
 ```
+When `ray` is omitted, `GameTracer.jl` generates it internally with `rand(rng, 
+sum(g.nums_actions))`. Therefore, repeated calls with the same object use 
+different rays as its state advances.
+
+```julia
+julia> res2 = gnm_solve(rng, g);
+
+julia> println(length(res2.NEs))
+2
+```
+
+In the example above, the second call finds 2 equilibria while the first call 
+finds 7. Different rays may yield different equilibria, or different numbers of 
+equilibria, if found. `gnm_solve` is not guaranteed to find an equilibrium on an
+ arbitrary run.
 
 # References
 - S. Govindan and R. Wilson, "A global Newton method to compute Nash 
