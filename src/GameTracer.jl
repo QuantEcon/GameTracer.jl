@@ -68,8 +68,7 @@ approximation (IPA) algorithm (Govindan and Wilson, 2004).
 
 # Examples
 
-Consider the following 2x2x2 game with 9 Nash equilibria from McKelvey and 
-    McLennan (1996):
+Consider the following 2x2x2 game with 9 Nash equilibria from McKelvey and McLennan (1996):
 
 ```julia
 julia> using GameTheory, GameTracer, Random
