@@ -56,7 +56,7 @@ println(length(res1.NEs))
 7
 ```
 
-When `ray` is omitted, `GameTracer.jl` generates it internally with `rand(rng, sum(g.nums_actions))`. Therefore, repeated calls with the same object use different rays as its state advances.
+When `ray` is omitted, `GameTracer.jl` generates it internally with `rand(rng, sum(g.nums_actions))`. Therefore, repeated calls with the same `rng` object (the same RNG instance) use different rays as the RNG state advances.
 
 ```julia
 res2 = gnm_solve(rng, g);
