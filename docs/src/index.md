@@ -2,13 +2,24 @@
 CurrentModule = GameTracer
 ```
 
-# GameTracer
+# GameTracer.jl
 
-Documentation for [GameTracer](https://github.com/QuantEcon/GameTracer.jl).
+Julia wrapper for [gametracer](https://github.com/QuantEcon/gametracer),
+exposing its Nash equilibrium solvers for `NormalFormGame` from
+[GameTheory.jl](https://github.com/QuantEcon/GameTheory.jl)
 
-```@index
+## API Reference
+
+### Iterated Polymatrix Approximation (IPA)
+
+```@docs
+ipa_solve
+IPAResult
 ```
 
-```@autodocs
-Modules = [GameTracer]
+### Global Newton Method (GNM)
+
+```@docs
+gnm_solve
+GNMResult
 ```
