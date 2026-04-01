@@ -35,7 +35,7 @@ Struct that stores the output of the GNM solver.
 
 - `NEs::Vector{NTuple{N, Vector{Float64}}}`: Vector of tuples of computed Nash 
   equilibrium mixed actions.
-- `ret_code::Int`: Return code from the underlying C shim: the number of the
+- `ret_code::Int`: Return code from the underlying C shim: the number of
   equilibria found.
 """
 struct GNMResult{N}
