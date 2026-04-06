@@ -52,12 +52,6 @@ using Test
         end
     end
 
-    @testset "1-player game" begin
-        g = NormalFormGame([[1], [2], [3]])
-        @test_throws ArgumentError ipa_solve(g)
-        @test_throws ArgumentError gnm_solve(g)
-    end
-
     @testset "ipa_solve input validation" begin
         g = gs[1]
         seed = 1234
@@ -76,6 +70,12 @@ using Test
         M = sum(g.nums_actions)
         @test_throws ArgumentError gnm_solve(rng, g, ray=zeros(M - 1))
         @test_throws ArgumentError gnm_solve(rng, g, lambdamin=0.0)
+    end
+
+    @testset "1-player game" begin
+        g = NormalFormGame([[1], [2], [3]])
+        @test_throws ArgumentError ipa_solve(g)
+        @test_throws ArgumentError gnm_solve(g)
     end
 
     @testset "action-profile helpers" begin
