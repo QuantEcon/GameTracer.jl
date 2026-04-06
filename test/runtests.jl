@@ -38,6 +38,14 @@ using Test
             tol = fuzz * payoff_max
             @test is_nash(g, res.NE, tol=tol)
         end
+
+        @testset "IPAResult.ray" begin
+            g = gs[2]
+            ray = zeros(sum(g.nums_actions))
+            ray[[cumsum(g.nums_actions)...]] .= 1
+            res = @inferred ipa_solve(g, ray=ray)
+            @test res.ray == ray
+        end
     end
 
     @testset "gnm_solve" begin
@@ -49,6 +57,14 @@ using Test
             for NE in res.NEs
                 @test is_nash(g, NE,)
             end
+        end
+
+        @testset "GNMResult.ray" begin
+            g = gs[2]
+            ray = zeros(sum(g.nums_actions))
+            ray[[cumsum(g.nums_actions)...]] .= 1
+            res = @inferred gnm_solve(g, ray=ray)
+            @test res.ray == ray
         end
     end
 

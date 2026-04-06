@@ -20,10 +20,12 @@ Struct that stores the output of the IPA solver.
 - `NE::NTuple{N, Vector{Float64}}`: Tuple of computed Nash equilibrium mixed 
   actions.
 - `ret_code::Int`: Return code from the underlying C shim: `1` on success.
+- `ray::Vector{Float64}`: Perturbation ray used by the solver.
 """
 struct IPAResult{N}
     NE::NTuple{N, Vector{Float64}}
     ret_code::Int
+    ray::Vector{Float64}
 end
 
 """
@@ -37,10 +39,12 @@ Struct that stores the output of the GNM solver.
   equilibrium mixed actions.
 - `ret_code::Int`: Return code from the underlying C shim: the number of
   equilibria found.
+- `ray::Vector{Float64}`: Perturbation ray used by the solver.
 """
 struct GNMResult{N}
     NEs::Vector{NTuple{N, Vector{Float64}}}
     ret_code::Int
+    ray::Vector{Float64}
 end
 
 
@@ -157,7 +161,7 @@ function ipa_solve(
 
     actions = Cint[g.nums_actions...]
     p = GAMPayoffVector(Cdouble, g)
-    ray = convert(Vector{Cdouble}, ray)
+    ray = Vector{Cdouble}(ray)  # Copy
     zh = Vector{Cdouble}(zh_init)  # Copy
     out = Vector{Cdouble}(undef, M)
     out, ret_code = ipa!(
@@ -166,7 +170,7 @@ function ipa_solve(
 
     NE = _get_action_profile(out, g.nums_actions)
 
-    return IPAResult(NE, Int(ret_code))
+    return IPAResult(NE, Int(ret_code), ray)
 end
 
 ipa_solve(g::NormalFormGame; kwargs...) =
@@ -308,7 +312,7 @@ function gnm_solve(
 
     actions = Cint[g.nums_actions...]
     p = GAMPayoffVector(Cdouble, g)
-    ray = convert(Vector{Cdouble}, ray)
+    ray = Vector{Cdouble}(ray)  # Copy
     answers, ret_code = gnm(
         N, actions, p.payoffs, ray,
         steps, Cdouble(fuzz), lnmfreq, lnmmax,
@@ -317,7 +321,7 @@ function gnm_solve(
 
     NEs = _get_action_profiles(answers, g.nums_actions)
     
-    return GNMResult(NEs, Int(ret_code))
+    return GNMResult(NEs, Int(ret_code), ray)
 end
 
 gnm_solve(g::NormalFormGame; kwargs...) = 
