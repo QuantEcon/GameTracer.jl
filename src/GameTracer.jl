@@ -90,8 +90,6 @@ known to have 9 Nash equilibria:
 ```julia
 julia> using GameTheory, GameTracer, Random
 
-julia> Base.active_repl.options.iocontext[:compact] = true;  # Reduce digits to display
-
 julia> rng = MersenneTwister(0);
 
 julia> g = NormalFormGame((2, 2, 2));
@@ -104,17 +102,19 @@ julia> g[1, 2, 2] = [3, 4, 6];
 
 julia> g[2, 1, 2] = [3, 4, 4];
 
-julia> println(g)
+julia> g
 2×2×2 NormalFormGame{3, Float64}:
 [:, :, 1] =
- [9.0, 8.0, 12.0]  [0.0, 0.0, 0.0]
- [0.0, 0.0, 0.0]   [9.0, 8.0, 2.0]
+ (9.0, 8.0, 12.0)  (0.0, 0.0, 0.0)
+ (0.0, 0.0, 0.0)   (9.0, 8.0, 2.0)
 
 [:, :, 2] =
- [0.0, 0.0, 0.0]  [3.0, 4.0, 6.0]
- [3.0, 4.0, 4.0]  [0.0, 0.0, 0.0]
+ (0.0, 0.0, 0.0)  (3.0, 4.0, 6.0)
+ (3.0, 4.0, 4.0)  (0.0, 0.0, 0.0)
 
 julia> res = ipa_solve(rng, g);
+
+julia> Base.active_repl.options.iocontext[:compact] = true;  # Reduce digits to display
 
 julia> res.NE
 ([1.0, 0.0], [1.0, 0.0], [1.0, 0.0])
@@ -232,8 +232,6 @@ known to have 9 Nash equilibria:
 ```julia
 julia> using GameTheory, GameTracer, Random
 
-julia> Base.active_repl.options.iocontext[:compact] = true;  # Reduce digits to display
-
 julia> rng = MersenneTwister(50);
 
 julia> g = NormalFormGame((2, 2, 2));
@@ -246,17 +244,19 @@ julia> g[1, 2, 2] = [3, 4, 6];
 
 julia> g[2, 1, 2] = [3, 4, 4];
 
-julia> println(g)
+julia> g
 2×2×2 NormalFormGame{3, Float64}:
 [:, :, 1] =
- [9.0, 8.0, 12.0]  [0.0, 0.0, 0.0]
- [0.0, 0.0, 0.0]   [9.0, 8.0, 2.0]
+ (9.0, 8.0, 12.0)  (0.0, 0.0, 0.0)
+ (0.0, 0.0, 0.0)   (9.0, 8.0, 2.0)
 
 [:, :, 2] =
- [0.0, 0.0, 0.0]  [3.0, 4.0, 6.0]
- [3.0, 4.0, 4.0]  [0.0, 0.0, 0.0]
+ (0.0, 0.0, 0.0)  (3.0, 4.0, 6.0)
+ (3.0, 4.0, 4.0)  (0.0, 0.0, 0.0)
 
 julia> res = gnm_solve(rng, g);
+
+julia> Base.active_repl.options.iocontext[:compact] = true;  # Reduce digits to display
 
 julia> res.NEs
 2-element Vector{Tuple{Vector{Float64}, Vector{Float64}, Vector{Float64}}}:
