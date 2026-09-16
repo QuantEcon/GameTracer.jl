@@ -14,6 +14,17 @@ function is_mixed_action_profile(x, nums_actions; tol=1e-12)
     return true
 end
 
+# First `n` outputs of the C library's `drand48` after `srand48(1)`
+function drand48_sequence(n)
+    out = Vector{Float64}(undef, n)
+    x = (UInt64(1) << 16) | 0x330E  # srand48(1)
+    for i in 1:n
+        x = (0x5DEECE66D * x + 0xB) & ((UInt64(1) << 48) - 1)
+        out[i] = x / 2^48
+    end
+    return out
+end
+
 @testset "GameTracer.jl" begin
     gs = []
 
@@ -205,6 +216,29 @@ end
         res = gnm_solve(g, ray=ray, max_iter=needed)
         @test length(res.NEs) == length(res_full.NEs)
         @test res.num_iter == needed
+    end
+
+    @testset "gnm_solve cycling path" begin
+        # Random 6-player 2-action game on which GNM traces a closed cycle
+        # (one lap is 400 support cells) and never terminates without an
+        # iteration limit, appending the same equilibria on every lap.
+        # Generated as in the upstream C API tests by `gt -r 6 2 1 1`:
+        # payoffs from `makeRandomNFGame(6, 2, 1)` in GAM order and ray from
+        # `srand48(1)`, normalized.
+        nums_actions = ntuple(_ -> 2, 6)
+        payoffs = drand48_sequence(6 * prod(nums_actions))
+        g = NormalFormGame(GameTheory.GAMPayoffVector(nums_actions, payoffs))
+        ray = drand48_sequence(sum(nums_actions))
+        ray ./= sqrt(sum(abs2, ray))
+
+        max_iter = 500
+        res = gnm_solve(g, ray=ray, max_iter=max_iter)
+        @test res.num_iter == max_iter
+        @test res.max_iter == max_iter
+        @test res.ret_code == length(res.NEs) > 0
+        for NE in res.NEs
+            @test is_nash(g, NE, tol=1e-8)
+        end
     end
 
     @testset "1-player game" begin
