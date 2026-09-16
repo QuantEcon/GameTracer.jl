@@ -17,8 +17,8 @@ Struct that stores the output of the IPA solver.
 
 # Fields
 
-- `NE::NTuple{N, Vector{Float64}}`: Tuple of computed Nash equilibrium mixed
-  actions.
+- `NE::NTuple{N, Vector{Float64}}`: Tuple of computed (approximate) Nash
+  equilibrium mixed actions.
 - `converged::Bool`: Whether an equilibrium was found, i.e., whether the
   stopping tolerance was met within `max_iter` iterations without the solver
   giving up.
@@ -102,8 +102,8 @@ polymatrix approximation (IPA) algorithm (Govindan and Wilson, 2004).
 
 - `res::IPAResult`: Result object containing information about the computed
   equilibrium. `res.NE` contains an `N` tuple of mixed actions, one for each
-  player, which is a Nash equilibrium if `res.converged` is `true`. See
-  [`IPAResult`](@ref) for the other fields.
+  player, which is an approximate Nash equilibrium if `res.converged` is
+  `true`. See [`IPAResult`](@ref) for the other fields.
 
 # Examples
 
