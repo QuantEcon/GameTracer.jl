@@ -189,10 +189,10 @@ function ipa_solve(
         throw(ArgumentError("length(zh_init) must equal sum(g.nums_actions)"))
     0 < alpha < 1 ||
         throw(ArgumentError("alpha must satisfy 0 < alpha < 1"))
-    max_iter >= 1 ||
-        throw(ArgumentError("max_iter must be positive"))
-    max_pivots >= 1 ||
-        throw(ArgumentError("max_pivots must be positive"))
+    1 <= max_iter <= typemax(Cint) ||
+        throw(ArgumentError("max_iter must be a positive Cint"))
+    1 <= max_pivots <= typemax(Cint) ||
+        throw(ArgumentError("max_pivots must be a positive Cint"))
 
     actions = Cint[g.nums_actions...]
     p = GAMPayoffVector(Cdouble, g)
@@ -353,8 +353,8 @@ function gnm_solve(
         throw(ArgumentError("length(ray) must equal sum(g.nums_actions)"))
     lambdamin < 0 ||
         throw(ArgumentError("lambdamin must be negative"))
-    max_iter >= 1 ||
-        throw(ArgumentError("max_iter must be positive"))
+    1 <= max_iter <= typemax(Cint) ||
+        throw(ArgumentError("max_iter must be a positive Cint"))
 
     actions = Cint[g.nums_actions...]
     p = GAMPayoffVector(Cdouble, g)

@@ -95,6 +95,8 @@ end
         @test_throws ArgumentError ipa_solve(rng, g, alpha=1.5)
         @test_throws ArgumentError ipa_solve(rng, g, max_iter=0)
         @test_throws ArgumentError ipa_solve(rng, g, max_pivots=0)
+        @test_throws ArgumentError ipa_solve(rng, g, max_iter=typemax(Int))
+        @test_throws ArgumentError ipa_solve(rng, g, max_pivots=typemax(Int))
     end
 
     @testset "ipa_solve iteration limits" begin
@@ -157,6 +159,7 @@ end
         @test_throws ArgumentError gnm_solve(rng, g, ray=zeros(M - 1))
         @test_throws ArgumentError gnm_solve(rng, g, lambdamin=0.0)
         @test_throws ArgumentError gnm_solve(rng, g, max_iter=0)
+        @test_throws ArgumentError gnm_solve(rng, g, max_iter=typemax(Int))
     end
 
     @testset "gnm_solve iteration limits" begin
