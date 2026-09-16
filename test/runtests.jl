@@ -3,6 +3,28 @@ using GameTheory
 using Random
 using Test
 
+# Whether `x` is a valid mixed action profile of a game with `nums_actions`
+function is_mixed_action_profile(x, nums_actions; tol=1e-12)
+    length(x) == length(nums_actions) || return false
+    for (xi, n) in zip(x, nums_actions)
+        length(xi) == n || return false
+        all(>=(-tol), xi) || return false
+        isapprox(sum(xi), 1, atol=tol) || return false
+    end
+    return true
+end
+
+# First `n` outputs of the C library's `drand48` after `srand48(1)`
+function drand48_sequence(n)
+    out = Vector{Float64}(undef, n)
+    x = (UInt64(1) << 16) | 0x330E  # srand48(1)
+    for i in 1:n
+        x = (0x5DEECE66D * x + 0xB) & ((UInt64(1) << 48) - 1)
+        out[i] = x / 2.0^48
+    end
+    return out
+end
+
 @testset "GameTracer.jl" begin
     gs = []
 
@@ -27,7 +49,10 @@ using Test
             )
 
             res = @inferred ipa_solve(rng, g)
-            @test res.ret_code > 0
+            @test res.converged
+            @test res.ret_code == 1
+            @test res.num_iter >= 1
+            @test res.max_iter == 100000
 
             # Heuristic; no epsilon-optimality guarantee derived in the paper
             tol = fuzz_default * payoff_max
@@ -54,6 +79,8 @@ using Test
         for g in gs
             res = @inferred gnm_solve(rng, g)
             @test length(res.NEs) == res.ret_code
+            @test res.num_iter >= 1
+            @test res.max_iter == 5000
             for NE in res.NEs
                 @test is_nash(g, NE,)
             end
@@ -77,6 +104,63 @@ using Test
         @test_throws ArgumentError ipa_solve(rng, g, zh_init=ones(M - 1))
         @test_throws ArgumentError ipa_solve(rng, g, alpha=-0.1)
         @test_throws ArgumentError ipa_solve(rng, g, alpha=1.5)
+        @test_throws ArgumentError ipa_solve(rng, g, max_iter=0)
+        @test_throws ArgumentError ipa_solve(rng, g, max_pivots=0)
+        too_large = Int64(typemax(Cint)) + 1
+        @test_throws ArgumentError ipa_solve(rng, g, max_iter=too_large)
+        @test_throws ArgumentError ipa_solve(rng, g, max_pivots=too_large)
+    end
+
+    @testset "ipa_solve iteration limits" begin
+        # 2x2x2 game: needs more than 10 iterations with this ray
+        g = gs[2]
+        ray = [0.3, 0.7, 0.6, 0.4, 0.2, 0.8]
+        res = ipa_solve(g, ray=ray)
+        @test res.converged
+        needed = res.num_iter
+        @test needed > 10
+
+        # Iteration limit reached: the last iterate is returned
+        for cap in (1, 10)
+            res = @inferred ipa_solve(g, ray=ray, max_iter=cap)
+            @test !res.converged
+            @test res.ret_code == 0
+            @test res.num_iter == cap
+            @test res.max_iter == cap
+            @test is_mixed_action_profile(res.NE, g.nums_actions)
+        end
+
+        # Exactly enough iterations
+        res = ipa_solve(g, ray=ray, max_iter=needed)
+        @test res.converged
+        @test res.num_iter == needed
+        @test is_nash(g, res.NE, tol=1e-5)
+
+        # Pivot limit: the solver gives up and returns the last iterate
+        res = ipa_solve(g, ray=ray, max_pivots=2)
+        @test !res.converged
+        @test res.ret_code == 0
+        @test 1 <= res.num_iter < needed
+        @test is_mixed_action_profile(res.NE, g.nums_actions)
+
+        # 3x2 game: the Lemke-Howson path has exactly 5 pivots
+        g = gs[1]
+        ray = [0.0, 0.0, 1.0, 0.0, 1.0]
+        zh_init = [1/3, 1/3, 1/3, 1/2, 1/2]
+        res = ipa_solve(g, ray=ray, zh_init=zh_init, max_pivots=4)
+        @test !res.converged
+        @test res.num_iter == 1
+        @test is_mixed_action_profile(res.NE, g.nums_actions)
+        res = ipa_solve(g, ray=ray, zh_init=zh_init, max_pivots=5)
+        @test res.converged
+        @test res.num_iter == 1
+        @test is_nash(g, res.NE, tol=1e-6)
+
+        # Giving up during the last allowed iteration also leaves
+        # num_iter == max_iter
+        res = ipa_solve(g, ray=ray, zh_init=zh_init, max_iter=1, max_pivots=4)
+        @test !res.converged
+        @test res.num_iter == 1
     end
 
     @testset "gnm_solve input validation" begin
@@ -86,12 +170,118 @@ using Test
         M = sum(g.nums_actions)
         @test_throws ArgumentError gnm_solve(rng, g, ray=zeros(M - 1))
         @test_throws ArgumentError gnm_solve(rng, g, lambdamin=0.0)
+        @test_throws ArgumentError gnm_solve(rng, g, max_iter=0)
+        too_large = Int64(typemax(Cint)) + 1
+        @test_throws ArgumentError gnm_solve(rng, g, max_iter=too_large)
+    end
+
+    @testset "gnm_solve iteration limits" begin
+        # 3x2 game: the three equilibria are found one by one along the path
+        g = gs[1]
+        ray = [0.0, 0.0, 1.0, 0.0, 1.0]
+        res = gnm_solve(g, ray=ray)
+        @test length(res.NEs) == 3
+        needed = res.num_iter
+        @test needed > 3
+
+        prev = 0
+        for cap in 1:needed-1
+            res = @inferred gnm_solve(g, ray=ray, max_iter=cap)
+            @test 0 <= res.ret_code <= 3
+            @test res.ret_code >= prev  # Found in path order
+            @test res.num_iter == cap
+            @test res.max_iter == cap
+            for NE in res.NEs
+                @test is_nash(g, NE)
+            end
+            prev = res.ret_code
+        end
+        @test prev < 3  # The last crossing is needed for the third one
+
+        res = gnm_solve(g, ray=ray, max_iter=needed)
+        @test length(res.NEs) == 3
+        @test res.num_iter == needed
+
+        # 2x2x2 game (nonlinear path within a cell)
+        g = gs[2]
+        ray = [0.3, 0.7, 0.6, 0.4, 0.2, 0.8]
+        res_full = gnm_solve(g, ray=ray)
+        @test length(res_full.NEs) > 1
+        needed = res_full.num_iter
+        @test needed > 1
+        res = gnm_solve(g, ray=ray, max_iter=1)
+        @test length(res.NEs) < length(res_full.NEs)
+        @test res.num_iter == 1
+        for NE in res.NEs
+            @test is_nash(g, NE)
+        end
+        res = gnm_solve(g, ray=ray, max_iter=needed)
+        @test length(res.NEs) == length(res_full.NEs)
+        @test res.num_iter == needed
+    end
+
+    @testset "gnm_solve cycling path" begin
+        # Random 6-player 2-action game on which GNM traces a closed cycle
+        # (one lap is 400 support cells) and never terminates without an
+        # iteration limit, appending the same equilibria on every lap.
+        # Generated as in the upstream C API tests by `gt -r 6 2 1 1`:
+        # payoffs from `makeRandomNFGame(6, 2, 1)` in GAM order and ray from
+        # `srand48(1)`, normalized.
+        nums_actions = ntuple(_ -> 2, 6)
+        payoffs = drand48_sequence(6 * prod(nums_actions))
+        @test payoffs[1] == 0.041630344771878214  # As in the upstream fixture
+        g = NormalFormGame(GameTheory.GAMPayoffVector(nums_actions, payoffs))
+        ray = drand48_sequence(sum(nums_actions))
+        ray ./= sqrt(sum(abs2, ray))
+
+        max_iter = 500
+        res = gnm_solve(g, ray=ray, max_iter=max_iter)
+        @test res.num_iter == max_iter
+        @test res.max_iter == max_iter
+        @test res.ret_code == length(res.NEs) > 0
+        for NE in res.NEs
+            @test is_nash(g, NE, tol=1e-8)
+        end
     end
 
     @testset "1-player game" begin
         g = NormalFormGame([[1], [2], [3]])
         @test_throws ArgumentError ipa_solve(g)
         @test_throws ArgumentError gnm_solve(g)
+    end
+
+    @testset "C shim error codes" begin
+        cases = (
+            (-1, "invalid arguments or size overflow"),
+            (-2, "allocation failure"),
+            (-3, "internal error"),
+            (-99, "unknown error"),
+        )
+        for name in ("IPA", "GNM"), (ret, msg) in cases
+            expected = ErrorException("$name failed (ret = $ret: $msg)")
+            @test_throws expected GameTracer._shim_error(name, Cint(ret))
+        end
+
+        # Negative returns from the shim are routed to `_shim_error`:
+        # a non-positive action count is rejected with -1
+        actions = Cint[3, 0]
+        M = 3
+        payoffs = zeros(6)
+        ray = ones(M)
+        expected = ErrorException(
+            "IPA failed (ret = -1: invalid arguments or size overflow)"
+        )
+        @test_throws expected GameTracer.ipa!(
+            2, actions, payoffs, ray, ones(M), 0.02, 1e-6, zeros(M),
+            Cint(10), Cint(10)
+        )
+        expected = ErrorException(
+            "GNM failed (ret = -1: invalid arguments or size overflow)"
+        )
+        @test_throws expected GameTracer.gnm(
+            2, actions, payoffs, ray, 100, 1e-12, 3, 10, -10.0, 0, 1e-2,
+            Cint(10)
+        )
     end
 
     @testset "action-profile helpers" begin

@@ -17,14 +17,24 @@ Struct that stores the output of the IPA solver.
 
 # Fields
 
-- `NE::NTuple{N, Vector{Float64}}`: Tuple of computed Nash equilibrium mixed 
-  actions.
-- `ret_code::Int`: Return code from the underlying C shim: `1` on success.
+- `NE::NTuple{N, Vector{Float64}}`: Tuple of computed (approximate) Nash
+  equilibrium mixed actions.
+- `converged::Bool`: Whether an equilibrium was found, i.e., whether the
+  stopping tolerance was met within `max_iter` iterations without the solver
+  giving up.
+- `ret_code::Int`: Return code from the underlying C shim: `1` on success,
+  `0` if `max_iter` was reached or the solver gave up.
+- `num_iter::Int`: Number of iterations (polymatrix approximations)
+  performed.
+- `max_iter::Int`: Maximum number of iterations.
 - `ray::Vector{Float64}`: Perturbation ray used by the solver.
 """
 struct IPAResult{N}
     NE::NTuple{N, Vector{Float64}}
+    converged::Bool
     ret_code::Int
+    num_iter::Int
+    max_iter::Int
     ray::Vector{Float64}
 end
 
@@ -39,11 +49,15 @@ Struct that stores the output of the GNM solver.
   equilibrium mixed actions.
 - `ret_code::Int`: Return code from the underlying C shim: the number of
   equilibria found.
+- `num_iter::Int`: Number of iterations (support cells entered) performed.
+- `max_iter::Int`: Maximum number of iterations.
 - `ray::Vector{Float64}`: Perturbation ray used by the solver.
 """
 struct GNMResult{N}
     NEs::Vector{NTuple{N, Vector{Float64}}}
     ret_code::Int
+    num_iter::Int
+    max_iter::Int
     ray::Vector{Float64}
 end
 
@@ -75,12 +89,21 @@ polymatrix approximation (IPA) algorithm (Govindan and Wilson, 2004).
 - `alpha::Real = 0.02`: Step size fraction of an update of ``\hat{z}``. Must
   satisfy `0 < alpha < 1`.
 - `fuzz::Real = 1e-6`: Stopping tolerance for the computed equilibrium.
+- `max_iter::Integer = 100000`: Maximum number of iterations (polymatrix
+  approximations). Must be positive. If it is reached before the stopping
+  tolerance `fuzz` is met, the last iterate is returned with
+  `res.converged == false`.
+- `max_pivots::Integer = 1000000`: Maximum number of pivoting steps along
+  the Lemke-Howson path in each solve of a polymatrix approximation. Must be
+  positive. If it is reached, the solver gives up and the last iterate is
+  returned with `res.converged == false`.
 
 # Returns
 
 - `res::IPAResult`: Result object containing information about the computed
   equilibrium. `res.NE` contains an `N` tuple of mixed actions, one for each
-  player.
+  player, which is an approximate Nash equilibrium if `res.converged` is
+  `true`. See [`IPAResult`](@ref) for the other fields.
 
 # Examples
 
@@ -121,6 +144,12 @@ julia> res.NE
 
 julia> is_nash(g, res.NE)
 true
+
+julia> res.converged  # Whether an equilibrium was found
+true
+
+julia> res.num_iter  # Number of iterations performed
+28
 ```
 
 Calls with different rays generally yield different equilibria (here, `rng`
@@ -149,6 +178,8 @@ function ipa_solve(
     zh_init::AbstractVector{<:Real} = ones(sum(g.nums_actions)),
     alpha::Real = 0.02,
     fuzz::Real = 1e-6,
+    max_iter::Integer = 100000,
+    max_pivots::Integer = 1000000,
 ) where {N}
     M = sum(g.nums_actions)
 
@@ -158,19 +189,25 @@ function ipa_solve(
         throw(ArgumentError("length(zh_init) must equal sum(g.nums_actions)"))
     0 < alpha < 1 ||
         throw(ArgumentError("alpha must satisfy 0 < alpha < 1"))
+    1 <= max_iter <= typemax(Cint) ||
+        throw(ArgumentError("max_iter must be a positive Cint"))
+    1 <= max_pivots <= typemax(Cint) ||
+        throw(ArgumentError("max_pivots must be a positive Cint"))
 
     actions = Cint[g.nums_actions...]
     p = GAMPayoffVector(Cdouble, g)
     ray = Vector{Cdouble}(ray)  # Copy
     zh = Vector{Cdouble}(zh_init)  # Copy
     out = Vector{Cdouble}(undef, M)
-    out, ret_code = ipa!(
-        N, actions, p.payoffs, ray, zh, Cdouble(alpha), Cdouble(fuzz), out
+    out, ret_code, num_iter = ipa!(
+        N, actions, p.payoffs, ray, zh, Cdouble(alpha), Cdouble(fuzz), out,
+        Cint(max_iter), Cint(max_pivots)
     )
 
     NE = _get_action_profile(out, g.nums_actions)
 
-    return IPAResult(NE, Int(ret_code), ray)
+    return IPAResult(NE, ret_code == 1, Int(ret_code), Int(num_iter),
+                     Int(max_iter), ray)
 end
 
 ipa_solve(g::NormalFormGame; kwargs...) =
@@ -217,12 +254,15 @@ method (GNM) algorithm (Govindan and Wilson, 2003).
 - `threshold::Real = 1e-2`: Error threshold used to trigger a wobble. If
   `wobble == false`, the GNM algorithm terminates if the error reaches this
   threshold.
+- `max_iter::Integer = 5000`: Maximum number of iterations, where an
+  iteration is the traversal of one support cell. Must be positive. If it is
+  reached, the equilibria found so far are returned.
 
 # Returns
 
 - `res::GNMResult`: Result object containing information about the computed
   equilibria. `res.NEs` contains a vector of `N` tuples of mixed actions, one
-  for each equilibrium.
+  for each equilibrium. See [`GNMResult`](@ref) for the other fields.
 
 # Examples
 
@@ -262,6 +302,9 @@ julia> res.NEs
 2-element Vector{Tuple{Vector{Float64}, Vector{Float64}, Vector{Float64}}}:
  ([0.0, 1.0], [0.0, 1.0], [1.0, 0.0])
  ([0.0, 1.0], [0.333333, 0.666667], [0.333333, 0.666667])
+
+julia> res.num_iter  # Number of iterations performed
+3
 ```
 
 Calls with different rays generally yield different sets of equilibria (here,
@@ -301,27 +344,31 @@ function gnm_solve(
     lnmmax::Integer = 10,
     lambdamin::Real = -10.0,
     wobble::Bool = false,
-    threshold::Real = 1e-2
+    threshold::Real = 1e-2,
+    max_iter::Integer = 5000,
 ) where {N}
     M = sum(g.nums_actions)
 
     length(ray) == M ||
         throw(ArgumentError("length(ray) must equal sum(g.nums_actions)"))
-    lambdamin < 0 || 
+    lambdamin < 0 ||
         throw(ArgumentError("lambdamin must be negative"))
+    1 <= max_iter <= typemax(Cint) ||
+        throw(ArgumentError("max_iter must be a positive Cint"))
 
     actions = Cint[g.nums_actions...]
     p = GAMPayoffVector(Cdouble, g)
     ray = Vector{Cdouble}(ray)  # Copy
-    answers, ret_code = gnm(
+    answers, ret_code, num_iter = gnm(
         N, actions, p.payoffs, ray,
         steps, Cdouble(fuzz), lnmfreq, lnmmax,
-        Cdouble(lambdamin), wobble, Cdouble(threshold)
+        Cdouble(lambdamin), wobble, Cdouble(threshold),
+        Cint(max_iter)
     )
 
     NEs = _get_action_profiles(answers, g.nums_actions)
-    
-    return GNMResult(NEs, Int(ret_code), ray)
+
+    return GNMResult(NEs, Int(ret_code), Int(num_iter), Int(max_iter), ray)
 end
 
 gnm_solve(g::NormalFormGame; kwargs...) = 
@@ -336,6 +383,18 @@ end
 # Private API (C ABI wrappers)
 # ------------------------------------------------------------------
 
+# Error codes of the C shim (negative return values)
+const _SHIM_ERROR_MESSAGES = Dict{Cint,String}(
+    -1 => "invalid arguments or size overflow",
+    -2 => "allocation failure",
+    -3 => "internal error",
+)
+
+function _shim_error(name::AbstractString, ret::Cint)
+    msg = get(_SHIM_ERROR_MESSAGES, ret, "unknown error")
+    error("$name failed (ret = $ret: $msg)")
+end
+
 function ipa!(
     N::Integer,
     actions::Vector{Cint},
@@ -344,23 +403,30 @@ function ipa!(
     zh::Vector{Cdouble},
     alpha::Cdouble,
     fuzz::Cdouble,
-    out::Vector{Cdouble}
+    out::Vector{Cdouble},
+    max_iter::Cint,
+    max_pivots::Cint,
 )
+    num_iter = Ref{Cint}(0)
+
     ret = ccall(
         (:ipa, libgametracer), Cint,
         (Cint, Ptr{Cint}, Ptr{Cdouble},
          Ptr{Cdouble}, Ptr{Cdouble},
          Cdouble, Cdouble,
-         Ptr{Cdouble}),
+         Ptr{Cdouble}, Cint, Cint, Ref{Cint}),
         N, actions, payoffs,
         ray, zh,
         alpha, fuzz,
-        out
+        out, max_iter, max_pivots, num_iter
     )
 
-    ret <= 0 && error("IPA failed (ret = $ret)")
+    ret < 0 && _shim_error("IPA", ret)
 
-    return (out, ret)
+    # ret == 1: out holds an equilibrium
+    # ret == 0: max_iter reached or the solver gave up; out holds the last
+    #           iterate
+    return (out, ret, num_iter[])
 end
 
 function gnm(
@@ -375,24 +441,28 @@ function gnm(
     lambdamin::Cdouble,
     wobble::Integer,
     threshold::Cdouble,
+    max_iter::Cint,
 )
     M = sum(actions)
     answers_ref = Ref{Ptr{Cdouble}}(C_NULL)
+    num_iter = Ref{Cint}(0)
 
     ret = ccall(
         (:gnm, libgametracer), Cint,
         (Cint, Ptr{Cint}, Ptr{Cdouble},
          Ptr{Cdouble}, Ref{Ptr{Cdouble}},
-         Cint, Cdouble, Cint, Cint, Cdouble, Cint, Cdouble),
+         Cint, Cdouble, Cint, Cint, Cdouble, Cint, Cdouble,
+         Cint, Ref{Cint}),
         N, actions, payoffs,
         ray, answers_ref,
-        steps, fuzz, lnmfreq, lnmmax, lambdamin, wobble, threshold
+        steps, fuzz, lnmfreq, lnmmax, lambdamin, wobble, threshold,
+        max_iter, num_iter
     )
 
-    ret < 0 && error("GNM failed (ret = $ret)")
+    ret < 0 && _shim_error("GNM", ret)
 
     # ret == 0: 0 equilibria, answers == NULL
-    ret == 0 && return (Matrix{Cdouble}(undef, M, 0), ret)
+    ret == 0 && return (Matrix{Cdouble}(undef, M, 0), ret, num_iter[])
 
     # ret > 0: num_eq equilibria, answers is malloc'd buffer
     ptr = answers_ref[]
@@ -405,7 +475,7 @@ function gnm(
         ccall((:gametracer_free, libgametracer), Cvoid, (Ptr{Cvoid},), ptr)
     end
 
-    return (answers, ret)
+    return (answers, ret, num_iter[])
 end
 
 function _get_action_profile(x::AbstractVector{T},
