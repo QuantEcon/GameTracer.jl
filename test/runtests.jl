@@ -20,7 +20,7 @@ function drand48_sequence(n)
     x = (UInt64(1) << 16) | 0x330E  # srand48(1)
     for i in 1:n
         x = (0x5DEECE66D * x + 0xB) & ((UInt64(1) << 48) - 1)
-        out[i] = x / 2^48
+        out[i] = x / 2.0^48
     end
     return out
 end
@@ -106,8 +106,9 @@ end
         @test_throws ArgumentError ipa_solve(rng, g, alpha=1.5)
         @test_throws ArgumentError ipa_solve(rng, g, max_iter=0)
         @test_throws ArgumentError ipa_solve(rng, g, max_pivots=0)
-        @test_throws ArgumentError ipa_solve(rng, g, max_iter=typemax(Int))
-        @test_throws ArgumentError ipa_solve(rng, g, max_pivots=typemax(Int))
+        too_large = Int64(typemax(Cint)) + 1
+        @test_throws ArgumentError ipa_solve(rng, g, max_iter=too_large)
+        @test_throws ArgumentError ipa_solve(rng, g, max_pivots=too_large)
     end
 
     @testset "ipa_solve iteration limits" begin
@@ -170,7 +171,8 @@ end
         @test_throws ArgumentError gnm_solve(rng, g, ray=zeros(M - 1))
         @test_throws ArgumentError gnm_solve(rng, g, lambdamin=0.0)
         @test_throws ArgumentError gnm_solve(rng, g, max_iter=0)
-        @test_throws ArgumentError gnm_solve(rng, g, max_iter=typemax(Int))
+        too_large = Int64(typemax(Cint)) + 1
+        @test_throws ArgumentError gnm_solve(rng, g, max_iter=too_large)
     end
 
     @testset "gnm_solve iteration limits" begin
@@ -227,6 +229,7 @@ end
         # `srand48(1)`, normalized.
         nums_actions = ntuple(_ -> 2, 6)
         payoffs = drand48_sequence(6 * prod(nums_actions))
+        @test payoffs[1] == 0.041630344771878214  # As in the upstream fixture
         g = NormalFormGame(GameTheory.GAMPayoffVector(nums_actions, payoffs))
         ray = drand48_sequence(sum(nums_actions))
         ray ./= sqrt(sum(abs2, ray))
