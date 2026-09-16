@@ -250,6 +250,40 @@ end
         @test_throws ArgumentError gnm_solve(g)
     end
 
+    @testset "C shim error codes" begin
+        cases = (
+            (-1, "invalid arguments or size overflow"),
+            (-2, "allocation failure"),
+            (-3, "internal error"),
+            (-99, "unknown error"),
+        )
+        for name in ("IPA", "GNM"), (ret, msg) in cases
+            expected = ErrorException("$name failed (ret = $ret: $msg)")
+            @test_throws expected GameTracer._shim_error(name, Cint(ret))
+        end
+
+        # Negative returns from the shim are routed to `_shim_error`:
+        # a non-positive action count is rejected with -1
+        actions = Cint[3, 0]
+        M = 3
+        payoffs = zeros(6)
+        ray = ones(M)
+        expected = ErrorException(
+            "IPA failed (ret = -1: invalid arguments or size overflow)"
+        )
+        @test_throws expected GameTracer.ipa!(
+            2, actions, payoffs, ray, ones(M), 0.02, 1e-6, zeros(M),
+            Cint(10), Cint(10)
+        )
+        expected = ErrorException(
+            "GNM failed (ret = -1: invalid arguments or size overflow)"
+        )
+        @test_throws expected GameTracer.gnm(
+            2, actions, payoffs, ray, 100, 1e-12, 3, 10, -10.0, 0, 1e-2,
+            Cint(10)
+        )
+    end
+
     @testset "action-profile helpers" begin
         num_actions = (2, 3)
         x = [0.2, 0.8, 0.5, 0.3, 0.2]
