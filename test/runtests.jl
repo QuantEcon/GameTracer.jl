@@ -25,6 +25,21 @@ function drand48_sequence(n)
     return out
 end
 
+# The 2x2x2 game below, defined by its payoff function
+struct ThreePlayerRules <: AbstractNormalFormGame{3,Float64} end
+GameTheory.nums_actions(::ThreePlayerRules) = (2, 2, 2)
+function GameTheory.payoff_profile(::ThreePlayerRules, a)
+    a == (1, 1, 1) && return (9, 8, 12)
+    a == (2, 2, 1) && return (9, 8, 2)
+    a == (1, 2, 2) && return (3, 4, 6)
+    a == (2, 1, 2) && return (3, 4, 4)
+    return (0, 0, 0)
+end
+
+struct OnePlayerRules <: AbstractNormalFormGame{1,Int} end
+GameTheory.nums_actions(::OnePlayerRules) = (3,)
+GameTheory.payoff_profile(::OnePlayerRules, a) = (a[1],)
+
 @testset "GameTracer.jl" begin
     gs = []
 
@@ -248,6 +263,27 @@ end
         g = NormalFormGame([[1], [2], [3]])
         @test_throws ArgumentError ipa_solve(g)
         @test_throws ArgumentError gnm_solve(g)
+        @test_throws ArgumentError ipa_solve(OnePlayerRules())
+        @test_throws ArgumentError gnm_solve(OnePlayerRules())
+    end
+
+    @testset "game defined by its payoff function" begin
+        g_rules = ThreePlayerRules()
+        g_table = gs[2]  # The same game, filled in by hand above
+        for i in 1:3
+            @test NormalFormGame(g_rules).players[i].payoff_array ==
+                g_table.players[i].payoff_array
+        end
+        @test GameTheory.GAMPayoffVector(Cdouble, g_rules).payoffs ==
+            GameTheory.GAMPayoffVector(Cdouble, g_table).payoffs
+        seed = 1234
+        res_rules = ipa_solve(MersenneTwister(seed), g_rules)
+        res_table = ipa_solve(MersenneTwister(seed), g_table)
+        @test res_rules.NE == res_table.NE
+        @test res_rules.converged == res_table.converged
+        res_rules = gnm_solve(MersenneTwister(seed), g_rules)
+        res_table = gnm_solve(MersenneTwister(seed), g_table)
+        @test res_rules.NEs == res_table.NEs
     end
 
     @testset "C shim error codes" begin

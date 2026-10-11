@@ -7,7 +7,7 @@
 [![License: GPL v3+](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 
 Julia wrapper for [gametracer](https://github.com/QuantEcon/gametracer),
-exposing its Nash equilibrium solvers for `NormalFormGame` from
+exposing its Nash equilibrium solvers for normal form games from
 [GameTheory.jl](https://github.com/QuantEcon/GameTheory.jl)
 
 
