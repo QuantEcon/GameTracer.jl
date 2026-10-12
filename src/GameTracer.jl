@@ -1,6 +1,6 @@
 module GameTracer
 
-using GameTheory: NormalFormGame, GAMPayoffVector
+using GameTheory: AbstractNormalFormGame, GAMPayoffVector, nums_actions
 using Random
 using gametracer_jll: libgametracer
 
@@ -73,17 +73,17 @@ polymatrix approximation (IPA) algorithm (Govindan and Wilson, 2004).
 
 - `rng::AbstractRNG = Random.GLOBAL_RNG`: Random number generator used to
   randomly generate the default `ray`.
-- `g::GameTheory.NormalFormGame`: `NormalFormGame` instance with `N >= 2`
+- `g::GameTheory.AbstractNormalFormGame`: Normal form game with `N >= 2`
   players.
 
 # Keywords
 
-- `ray::AbstractVector{<:Real} = rand(rng, sum(g.nums_actions))`: Perturbation
-  ray for the IPA homotopy. Its length must equal `sum(g.nums_actions)`, and
+- `ray::AbstractVector{<:Real} = rand(rng, sum(nums_actions(g)))`: Perturbation
+  ray for the IPA homotopy. Its length must equal `sum(nums_actions(g))`, and
   entries are interpreted in player-concatenated order. Different rays may lead
   to different equilibria.
-- `zh_init::AbstractVector{<:Real} = ones(sum(g.nums_actions))`: Initial
-  condition for ``\hat{z}``. Its length must equal `sum(g.nums_actions)`.
+- `zh_init::AbstractVector{<:Real} = ones(sum(nums_actions(g)))`: Initial
+  condition for ``\hat{z}``. Its length must equal `sum(nums_actions(g))`.
   IPA starts with the projection of `zh_init` onto the mixed-action simplex
   product.
 - `alpha::Real = 0.02`: Step size fraction of an update of ``\hat{z}``. Must
@@ -173,20 +173,20 @@ true
 """
 function ipa_solve(
     rng::AbstractRNG,
-    g::NormalFormGame{N};
-    ray::AbstractVector{<:Real} = rand(rng, sum(g.nums_actions)),
-    zh_init::AbstractVector{<:Real} = ones(sum(g.nums_actions)),
+    g::AbstractNormalFormGame{N};
+    ray::AbstractVector{<:Real} = rand(rng, sum(nums_actions(g))),
+    zh_init::AbstractVector{<:Real} = ones(sum(nums_actions(g))),
     alpha::Real = 0.02,
     fuzz::Real = 1e-6,
     max_iter::Integer = 100000,
     max_pivots::Integer = 1000000,
 ) where {N}
-    M = sum(g.nums_actions)
+    M = sum(nums_actions(g))
 
     length(ray) == M ||
-        throw(ArgumentError("length(ray) must equal sum(g.nums_actions)"))
+        throw(ArgumentError("length(ray) must equal sum(nums_actions(g))"))
     length(zh_init) == M ||
-        throw(ArgumentError("length(zh_init) must equal sum(g.nums_actions)"))
+        throw(ArgumentError("length(zh_init) must equal sum(nums_actions(g))"))
     0 < alpha < 1 ||
         throw(ArgumentError("alpha must satisfy 0 < alpha < 1"))
     1 <= max_iter <= typemax(Cint) ||
@@ -194,7 +194,7 @@ function ipa_solve(
     1 <= max_pivots <= typemax(Cint) ||
         throw(ArgumentError("max_pivots must be a positive Cint"))
 
-    actions = Cint[g.nums_actions...]
+    actions = Cint[nums_actions(g)...]
     p = GAMPayoffVector(Cdouble, g)
     ray = Vector{Cdouble}(ray)  # Copy
     zh = Vector{Cdouble}(zh_init)  # Copy
@@ -204,16 +204,16 @@ function ipa_solve(
         Cint(max_iter), Cint(max_pivots)
     )
 
-    NE = _get_action_profile(out, g.nums_actions)
+    NE = _get_action_profile(out, nums_actions(g))
 
     return IPAResult(NE, ret_code == 1, Int(ret_code), Int(num_iter),
                      Int(max_iter), ray)
 end
 
-ipa_solve(g::NormalFormGame; kwargs...) =
+ipa_solve(g::AbstractNormalFormGame; kwargs...) =
     ipa_solve(Random.GLOBAL_RNG, g; kwargs...)
 
-function ipa_solve(rng::AbstractRNG, g::NormalFormGame{1}; kwargs...)
+function ipa_solve(rng::AbstractRNG, g::AbstractNormalFormGame{1}; kwargs...)
     throw(ArgumentError("not implemented for 1-player games"))
 end
 
@@ -229,13 +229,13 @@ method (GNM) algorithm (Govindan and Wilson, 2003).
 
 - `rng::AbstractRNG = Random.GLOBAL_RNG`: Random number generator used to
   randomly generate the default `ray`.
-- `g::GameTheory.NormalFormGame`: `NormalFormGame` instance with `N >= 2`
+- `g::GameTheory.AbstractNormalFormGame`: Normal form game with `N >= 2`
   players.
 
 # Keywords
 
-- `ray::AbstractVector{<:Real} = rand(rng, sum(g.nums_actions))`: Perturbation
-  ray for the GNM homotopy. Its length must equal `sum(g.nums_actions)`, and
+- `ray::AbstractVector{<:Real} = rand(rng, sum(nums_actions(g)))`: Perturbation
+  ray for the GNM homotopy. Its length must equal `sum(nums_actions(g))`, and
   entries are interpreted in player-concatenated order. Different rays may lead
   to different sets of equilibria.
 - `steps::Integer = 100`: Number of steps to take within a support cell.
@@ -336,8 +336,8 @@ true
 """
 function gnm_solve(
     rng::AbstractRNG,
-    g::NormalFormGame{N};
-    ray::AbstractVector{<:Real} = rand(rng, sum(g.nums_actions)),
+    g::AbstractNormalFormGame{N};
+    ray::AbstractVector{<:Real} = rand(rng, sum(nums_actions(g))),
     steps::Integer = 100,
     fuzz::Real = 1e-12,
     lnmfreq::Integer = 3,
@@ -347,16 +347,16 @@ function gnm_solve(
     threshold::Real = 1e-2,
     max_iter::Integer = 5000,
 ) where {N}
-    M = sum(g.nums_actions)
+    M = sum(nums_actions(g))
 
     length(ray) == M ||
-        throw(ArgumentError("length(ray) must equal sum(g.nums_actions)"))
+        throw(ArgumentError("length(ray) must equal sum(nums_actions(g))"))
     lambdamin < 0 ||
         throw(ArgumentError("lambdamin must be negative"))
     1 <= max_iter <= typemax(Cint) ||
         throw(ArgumentError("max_iter must be a positive Cint"))
 
-    actions = Cint[g.nums_actions...]
+    actions = Cint[nums_actions(g)...]
     p = GAMPayoffVector(Cdouble, g)
     ray = Vector{Cdouble}(ray)  # Copy
     answers, ret_code, num_iter = gnm(
@@ -366,15 +366,15 @@ function gnm_solve(
         Cint(max_iter)
     )
 
-    NEs = _get_action_profiles(answers, g.nums_actions)
+    NEs = _get_action_profiles(answers, nums_actions(g))
 
     return GNMResult(NEs, Int(ret_code), Int(num_iter), Int(max_iter), ray)
 end
 
-gnm_solve(g::NormalFormGame; kwargs...) = 
+gnm_solve(g::AbstractNormalFormGame; kwargs...) =
     gnm_solve(Random.GLOBAL_RNG, g; kwargs...)
 
-function gnm_solve(rng::AbstractRNG, g::NormalFormGame{1}; kwargs...)
+function gnm_solve(rng::AbstractRNG, g::AbstractNormalFormGame{1}; kwargs...)
     throw(ArgumentError("not implemented for 1-player games"))
 end
 
@@ -479,11 +479,11 @@ function gnm(
 end
 
 function _get_action_profile(x::AbstractVector{T},
-                             nums_actions::NTuple{N,Integer}) where {N,T}
-    out = ntuple(i -> Vector{T}(undef, nums_actions[i]), Val(N))
+                             na::NTuple{N,Integer}) where {N,T}
+    out = ntuple(i -> Vector{T}(undef, na[i]), Val(N))
     ind = 1
     @inbounds for i in 1:N
-        len = nums_actions[i]
+        len = na[i]
         copyto!(out[i], 1, x, ind, len)
         ind += len
     end
@@ -491,11 +491,11 @@ function _get_action_profile(x::AbstractVector{T},
 end
 
 function _get_action_profiles(x::AbstractMatrix{T},
-                              nums_actions::NTuple{N,Integer}) where {N,T}
+                              na::NTuple{N,Integer}) where {N,T}
     num_NEs = size(x, 2)
     out = Vector{NTuple{N,Vector{T}}}(undef, num_NEs)
     @inbounds for j in 1:num_NEs
-        out[j] = _get_action_profile(@view(x[:, j]), nums_actions)
+        out[j] = _get_action_profile(@view(x[:, j]), na)
     end
     return out
 end

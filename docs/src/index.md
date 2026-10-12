@@ -5,7 +5,7 @@ CurrentModule = GameTracer
 # GameTracer.jl
 
 Julia wrapper for [gametracer](https://github.com/QuantEcon/gametracer),
-exposing its Nash equilibrium solvers for `NormalFormGame` from
+exposing its Nash equilibrium solvers for normal form games from
 [GameTheory.jl](https://github.com/QuantEcon/GameTheory.jl)
 
 ## API Reference
